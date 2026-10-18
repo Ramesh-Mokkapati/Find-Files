@@ -1,0 +1,217 @@
+// Microsoft Visual C++ resource script
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+#include "afxres.h"
+#undef APSTUDIO_READONLY_SYMBOLS
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+
+/////////////////////////////////////////////////////////////////////////////
+// Dialogs
+
+IDD_FINDFILES DIALOGEX 0, 0, 450, 280
+STYLE DS_SHELLFONT | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CLIPCHILDREN
+EXSTYLE WS_EX_APPWINDOW
+CAPTION "Find: All Files"
+MENU IDR_MAINMENU
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CONTROL         "", IDC_TAB, "SysTabControl32", WS_TABSTOP | WS_CLIPSIBLINGS, 7, 7, 290, 96
+    DEFPUSHBUTTON   "F&ind Now", IDC_FINDNOW, 308, 25, 65, 14
+    PUSHBUTTON      "S&top", IDC_STOP, 308, 43, 65, 14
+    PUSHBUTTON      "Ne&w Search", IDC_NEWSEARCH, 308, 61, 65, 14
+    CONTROL         "", IDC_ANIM, "Static", SS_OWNERDRAW, 308, 79, 65, 24
+    CONTROL         "", IDC_RESULTS, "SysListView32", LVS_REPORT | LVS_SHOWSELALWAYS | LVS_SHAREIMAGELISTS | WS_BORDER | WS_TABSTOP, 0, 110, 380, 148
+END
+
+IDD_PAGE_NAME DIALOGEX 0, 0, 282, 78
+STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD
+EXSTYLE WS_EX_CONTROLPARENT
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    LTEXT           "&Named:", IDC_STATIC, 8, 12, 36, 8
+    COMBOBOX        IDC_NAMED, 48, 10, 225, 120, CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Look in:", IDC_STATIC, 8, 31, 36, 8
+    COMBOBOX        IDC_LOOKIN, 48, 29, 168, 120, CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Browse...", IDC_BROWSE, 221, 28, 52, 14
+    CONTROL         "Include &subfolders", IDC_SUBFOLDERS, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 48, 50, 100, 10
+    LTEXT           "Tip: separate several names with ';'  (e.g.  *.doc; report)", IDC_STATIC, 48, 64, 225, 8, WS_DISABLED
+END
+
+IDD_PAGE_DATE DIALOGEX 0, 0, 282, 78
+STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD
+EXSTYLE WS_EX_CONTROLPARENT
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CONTROL         "&All files", IDC_DATE_ALL, "Button", BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP, 8, 6, 140, 10
+    CONTROL         "Modified &between", IDC_DATE_BETWEEN, "Button", BS_AUTORADIOBUTTON, 8, 23, 84, 10
+    CONTROL         "During the previous", IDC_DATE_MONTHS, "Button", BS_AUTORADIOBUTTON, 8, 41, 84, 10
+    CONTROL         "During the pre&vious", IDC_DATE_DAYS, "Button", BS_AUTORADIOBUTTON, 8, 59, 84, 10
+    CONTROL         "", IDC_DATE_FROM, "SysDateTimePick32", DTS_SHORTDATEFORMAT | WS_GROUP | WS_TABSTOP, 96, 21, 72, 13
+    LTEXT           "and", IDC_STATIC, 173, 24, 14, 8
+    CONTROL         "", IDC_DATE_TO, "SysDateTimePick32", DTS_SHORTDATEFORMAT | WS_TABSTOP, 190, 21, 72, 13
+    EDITTEXT        IDC_MONTHS, 96, 39, 36, 13, ES_NUMBER | ES_AUTOHSCROLL
+    CONTROL         "", IDC_MONTHS_SPIN, "msctls_updown32", UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS, 132, 39, 10, 13
+    LTEXT           "month(s)", IDC_STATIC, 138, 41, 40, 8
+    EDITTEXT        IDC_DAYS, 96, 57, 36, 13, ES_NUMBER | ES_AUTOHSCROLL
+    CONTROL         "", IDC_DAYS_SPIN, "msctls_updown32", UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS, 132, 57, 10, 13
+    LTEXT           "day(s)", IDC_STATIC, 138, 59, 40, 8
+END
+
+IDD_PAGE_ADV DIALOGEX 0, 0, 282, 78
+STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD
+EXSTYLE WS_EX_CONTROLPARENT
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    LTEXT           "Of &type:", IDC_STATIC, 8, 10, 60, 8
+    COMBOBOX        IDC_OFTYPE, 72, 8, 200, 150, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Containing text:", IDC_STATIC, 8, 28, 60, 8
+    EDITTEXT        IDC_CONTAINING, 72, 26, 200, 13, ES_AUTOHSCROLL
+    LTEXT           "&Size is:", IDC_STATIC, 8, 46, 60, 8
+    COMBOBOX        IDC_SIZEOP, 72, 44, 64, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_SIZEKB, 141, 44, 50, 13, ES_NUMBER | ES_AUTOHSCROLL
+    CONTROL         "", IDC_SIZE_SPIN, "msctls_updown32", UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS, 191, 44, 10, 13
+    LTEXT           "KB", IDC_STATIC, 197, 46, 14, 8
+    CONTROL         "Include &hidden and system files", IDC_HIDDEN, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 8, 63, 160, 10
+END
+
+IDD_PAGE_DUP DIALOGEX 0, 0, 282, 78
+STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD
+EXSTYLE WS_EX_CONTROLPARENT
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CONTROL         "&Find duplicate files (group identical files into sets)", IDC_DUPS, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 8, 5, 260, 10
+    GROUPBOX        "Files are duplicates when they have the", IDC_DUP_GROUPBOX, 8, 18, 160, 56
+    CONTROL         "Same &name and size", IDC_DUP_NAMESIZE, "Button", BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP, 15, 30, 148, 10
+    CONTROL         "Same size and &content (SHA-256)", IDC_DUP_CONTENT, "Button", BS_AUTORADIOBUTTON, 15, 44, 148, 10
+    CONTROL         "Same name, size &and content", IDC_DUP_ALL, "Button", BS_AUTORADIOBUTTON, 15, 58, 148, 10
+    LTEXT           "&Ignore files smaller than:", IDC_DUP_MINLABEL, 178, 22, 96, 8
+    EDITTEXT        IDC_DUP_MINSIZE, 178, 33, 50, 13, ES_NUMBER | ES_AUTOHSCROLL | WS_GROUP
+    LTEXT           "KB", IDC_DUP_KBLABEL, 232, 35, 14, 8
+    CONTROL         "Skip &empty files", IDC_DUP_SKIPEMPTY, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 178, 54, 96, 10
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// Menus
+
+IDR_MAINMENU MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Open\tEnter",                ID_FILE_OPEN_ITEM
+        MENUITEM "Open &Containing Folder",     ID_FILE_OPENFOLDER
+        MENUITEM SEPARATOR
+        MENUITEM "&Delete\tDel",                ID_FILE_DELETE_ITEM
+        MENUITEM "&Move to Folder...",          ID_FILE_MOVETO
+        MENUITEM "P&roperties\tAlt+Enter",      ID_FILE_PROPERTIES
+        MENUITEM SEPARATOR
+        MENUITEM "&Save Results...",            ID_FILE_SAVERESULTS
+        MENUITEM SEPARATOR
+        MENUITEM "C&lose",                      ID_FILE_CLOSEAPP
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "&Copy Full Path\tCtrl+C",     ID_EDIT_COPYPATH
+        MENUITEM SEPARATOR
+        MENUITEM "Select &All\tCtrl+A",         ID_EDIT_SELECTALL
+        MENUITEM "&Invert Selection",           ID_EDIT_INVERT
+        MENUITEM SEPARATOR
+        POPUP "Select &Duplicates"
+        BEGIN
+            MENUITEM "Keep &First in Each Set", ID_DUP_KEEPFIRST
+            MENUITEM "Keep &Newest",            ID_DUP_KEEPNEWEST
+            MENUITEM "Keep &Oldest",            ID_DUP_KEEPOLDEST
+            MENUITEM "Keep &Shortest Path",     ID_DUP_KEEPSHORTEST
+        END
+    END
+    POPUP "&View"
+    BEGIN
+        MENUITEM "Lar&ge Icons",                ID_VIEWMODE_LARGEICONS
+        MENUITEM "S&mall Icons",                ID_VIEWMODE_SMALLICONS
+        MENUITEM "&List",                       ID_VIEWMODE_LIST
+        MENUITEM "&Details",                    ID_VIEWMODE_DETAILS
+        MENUITEM SEPARATOR
+        POPUP "Arrange &Icons"
+        BEGIN
+            MENUITEM "by &Name",                ID_ARRANGE_NAME
+            MENUITEM "by &Folder",              ID_ARRANGE_FOLDER
+            MENUITEM "by &Size",                ID_ARRANGE_SIZE
+            MENUITEM "by &Type",                ID_ARRANGE_TYPE
+            MENUITEM "by &Date",                ID_ARRANGE_DATE
+        END
+        MENUITEM SEPARATOR
+        MENUITEM "&Refresh\tF5",                ID_VIEW_REFRESH
+    END
+    POPUP "&Options"
+    BEGIN
+        MENUITEM "&Case Sensitive",             ID_OPT_CASE
+        MENUITEM "Find &Duplicate Files",       ID_OPT_DUPS
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About Find Files",           ID_HELP_ABOUT
+    END
+END
+
+IDR_CONTEXTMENU MENU
+BEGIN
+    POPUP "Context"
+    BEGIN
+        MENUITEM "&Open",                       ID_FILE_OPEN_ITEM
+        MENUITEM "Open &Containing Folder",     ID_FILE_OPENFOLDER
+        MENUITEM SEPARATOR
+        MENUITEM "Copy &Full Path",             ID_EDIT_COPYPATH
+        MENUITEM SEPARATOR
+        MENUITEM "&Delete",                     ID_FILE_DELETE_ITEM
+        MENUITEM "&Move to Folder...",          ID_FILE_MOVETO
+        MENUITEM SEPARATOR
+        MENUITEM "P&roperties",                 ID_FILE_PROPERTIES
+    END
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// Accelerators (active while the results list has focus)
+
+IDR_ACCEL ACCELERATORS
+BEGIN
+    "A",            ID_EDIT_SELECTALL,      VIRTKEY, CONTROL, NOINVERT
+    "C",            ID_EDIT_COPYPATH,       VIRTKEY, CONTROL, NOINVERT
+    VK_DELETE,      ID_FILE_DELETE_ITEM,    VIRTKEY, NOINVERT
+    VK_RETURN,      ID_FILE_OPEN_ITEM,      VIRTKEY, NOINVERT
+    VK_RETURN,      ID_FILE_PROPERTIES,     VIRTKEY, ALT, NOINVERT
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// Version
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGSMASK 0x3fL
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "FileDescription", "Find Files"
+            VALUE "FileVersion", "1.0.0.0"
+            VALUE "InternalName", "FindFiles.exe"
+            VALUE "OriginalFilename", "FindFiles.exe"
+            VALUE "ProductName", "Find Files"
+            VALUE "ProductVersion", "1.0.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+#ifndef APSTUDIO_INVOKED
+#if !defined(_AFXDLL)
+#include "afxres.rc"
+#endif
+#endif

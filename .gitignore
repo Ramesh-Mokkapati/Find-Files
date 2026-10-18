@@ -1,0 +1,60 @@
+# Visual Studio / MSBuild .gitignore for the FindFiles MFC solution
+
+# Build output (OutDir/IntDir in FindFiles.vcxproj)
+bin/
+obj/
+dist/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+Win32/
+ARM64/
+
+# Visual Studio cache and per-user settings
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IntelliSense and code-browsing databases
+*.VC.db
+*.VC.db-shm
+*.VC.db-wal
+*.VC.opendb
+*.sdf
+*.opensdf
+*.ipch
+ipch/
+
+# Resource editor cache (regenerated from FindFiles.rc)
+*.aps
+
+# Compiler / linker intermediates
+*.obj
+*.pch
+*.pdb
+*.idb
+*.ilk
+*.iobj
+*.ipdb
+*.exp
+*.lib
+*.res
+*.tlog
+*.lastbuildstate
+*.log
+*.recipe
+*.intermediate.manifest
+*.tmp
+
+# Crash dumps and profiler output
+*.dmp
+*.vspx
+*.diagsession
+
+# OS clutter
+Thumbs.db
+desktop.ini
+.DS_Store

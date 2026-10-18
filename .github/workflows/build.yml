@@ -1,0 +1,143 @@
+# Builds Find Files for x64 and x86 on every push and pull request.
+# Pushing a tag such as v1.0.0 also publishes a GitHub release with both builds.
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    # The project uses the Visual Studio 2022 toolset (v143) with MFC
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # platform: solution platform; outdir: the project's platform folder under bin/
+          - platform: x64
+            outdir: x64
+          - platform: x86
+            outdir: Win32
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: microsoft/setup-msbuild@v3
+
+      - name: Read version
+        id: version
+        shell: pwsh
+        run: |
+          # FILEVERSION 1,0,0,0  ->  1.0.0
+          $line = Select-String -Path FindFiles/FindFiles.rc -Pattern '^\s*FILEVERSION\s+(\d+),\s*(\d+),\s*(\d+)' | Select-Object -First 1
+          if (-not $line) { throw 'FILEVERSION not found in FindFiles/FindFiles.rc' }
+          $g = $line.Matches[0].Groups
+          $version = "$($g[1].Value).$($g[2].Value).$($g[3].Value)"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Find Files $version"
+
+          # A release tag must match the version built into the exe
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") {
+            throw "Tag $env:GITHUB_REF_NAME doesn't match version $version in FindFiles/FindFiles.rc. Bump the version before tagging."
+          }
+
+      - name: Build
+        # -warnaserror fails the build on any compiler or linker warning
+        run: msbuild FindFiles.sln -p:Configuration=Release -p:Platform=${{ matrix.platform }} -m -nologo -v:minimal -warnaserror
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $out = "bin/${{ matrix.outdir }}/Release"
+          $pkg = "dist/FindFiles-${{ steps.version.outputs.version }}-${{ matrix.platform }}"
+          New-Item -ItemType Directory -Force $pkg | Out-Null
+          Copy-Item "$out/FindFiles.exe", README.md $pkg
+
+      # The exe must load on a clean machine. Each DLL it imports must be a
+      # standard Windows DLL. MFC and the C++ runtime are linked statically
+      # (UseOfMfc=Static) and nothing installs the VC++ Redistributable, so the
+      # MFC/VC++ runtime DLLs are errors too, as is the Debug runtime, which
+      # isn't redistributable at all.
+      - name: Check runtime dependencies
+        shell: pwsh
+        env:
+          PKG: dist/FindFiles-${{ steps.version.outputs.version }}-${{ matrix.platform }}
+        run: |
+          # dumpbin ships with the Visual Studio C++ tools but isn't on PATH
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $dumpbin = & $vswhere -latest -products * -find 'VC\Tools\MSVC\**\bin\Hostx64\x64\dumpbin.exe' | Select-Object -Last 1
+          if (-not $dumpbin) { Write-Host '::error::dumpbin.exe not found, so the dependency check cannot run'; exit 1 }
+
+          # oledlg.dll is pulled in by statically linked MFC's OLE support
+          $allowed = '^((kernel32|kernelbase|ntdll|user32|gdi32|gdiplus|advapi32|shell32|shlwapi|ole32|oleaut32|oleacc|oledlg|comctl32|comdlg32|uxtheme|dwmapi|imm32|msimg32|winmm|version|setupapi|cfgmgr32|psapi|dbghelp|wtsapi32|powrprof|propsys|userenv|rpcrt4|crypt32|bcrypt|ncrypt|secur32|wintrust|ws2_32|winhttp|wininet|msvcrt|api-ms-win-[a-z0-9-]+|ext-ms-win-[a-z0-9-]+)\.dll|winspool\.drv)$'
+          $vcRuntime = '^(msvcp140|vcruntime140|concrt140|vcomp140|mfc140|mfcm140|ucrtbase)'
+          $debugRuntime = '^(msvcp140(_\d)?d|vcruntime140(_1)?d|concrt140d|ucrtbased|mfcm?140u?d)\.dll$'
+
+          $binaries = Get-ChildItem -LiteralPath $env:PKG -File | Where-Object { $_.Extension -in '.exe', '.dll' }
+          if (-not $binaries) { Write-Host "::error::no .exe/.dll files found in $env:PKG"; exit 1 }
+
+          $failed = $false
+          foreach ($binary in $binaries) {
+            $imports = & $dumpbin -nologo -dependents $binary.FullName |
+              Where-Object { $_ -match '^\s+(\S+\.(dll|drv))\s*$' } |
+              ForEach-Object { $Matches[1].ToLowerInvariant() }
+
+            foreach ($dll in $imports) {
+              if ($dll -match $debugRuntime) {
+                Write-Host "::error::$($binary.Name) needs the Debug C++ runtime ($dll), which isn't redistributable"; $failed = $true
+              }
+              elseif ($dll -match $vcRuntime) {
+                Write-Host "::error::$($binary.Name) needs the MFC/Visual C++ runtime ($dll); link it statically (UseOfMfc=Static)"; $failed = $true
+              }
+              elseif (-not (Test-Path -LiteralPath (Join-Path $env:PKG $dll)) -and $dll -notmatch $allowed) {
+                Write-Host "::error::$($binary.Name) needs $dll, which isn't in the package"; $failed = $true
+              }
+            }
+
+            Write-Host "$($binary.Name): $($imports -join ', ')"
+          }
+
+          Write-Host "Checked $($binaries.Count) binaries"
+          if ($failed) { exit 1 }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: FindFiles-${{ steps.version.outputs.version }}-${{ matrix.platform }}
+          path: dist/FindFiles-${{ steps.version.outputs.version }}-${{ matrix.platform }}
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: windows-2022
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+
+      - name: Zip builds
+        shell: pwsh
+        run: |
+          Get-ChildItem dist -Directory | ForEach-Object {
+            Compress-Archive -Path "$($_.FullName)/*" -DestinationPath "dist/$($_.Name).zip"
+          }
+
+      - name: Create release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME (Get-ChildItem dist/*.zip).FullName `
+            --repo $env:GITHUB_REPOSITORY --title "Find Files $($env:GITHUB_REF_NAME.TrimStart('v'))" --generate-notes
