@@ -10,19 +10,20 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 /////////////////////////////////////////////////////////////////////////////
 // Dialogs
 
-IDD_FINDFILES DIALOGEX 0, 0, 450, 280
+IDD_FINDFILES DIALOGEX 0, 0, 450, 298
 STYLE DS_SHELLFONT | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CLIPCHILDREN
 EXSTYLE WS_EX_APPWINDOW
 CAPTION "Find: All Files"
 MENU IDR_MAINMENU
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    CONTROL         "", IDC_TAB, "SysTabControl32", WS_TABSTOP | WS_CLIPSIBLINGS, 7, 7, 290, 96
+    CONTROL         "", IDC_TAB, "SysTabControl32", WS_TABSTOP | WS_CLIPSIBLINGS, 7, 7, 290, 114
     DEFPUSHBUTTON   "F&ind Now", IDC_FINDNOW, 308, 25, 65, 14
     PUSHBUTTON      "S&top", IDC_STOP, 308, 43, 65, 14
     PUSHBUTTON      "Ne&w Search", IDC_NEWSEARCH, 308, 61, 65, 14
-    CONTROL         "", IDC_ANIM, "Static", SS_OWNERDRAW, 308, 79, 65, 24
-    CONTROL         "", IDC_RESULTS, "SysListView32", LVS_REPORT | LVS_SHOWSELALWAYS | LVS_SHAREIMAGELISTS | WS_BORDER | WS_TABSTOP, 0, 110, 380, 148
+    PUSHBUTTON      "&Delete Duplicates", IDC_DELETEDUPS, 308, 79, 65, 14
+    CONTROL         "", IDC_ANIM, "Static", SS_OWNERDRAW, 308, 97, 65, 24
+    CONTROL         "", IDC_RESULTS, "SysListView32", LVS_REPORT | LVS_SHOWSELALWAYS | LVS_SHAREIMAGELISTS | WS_BORDER | WS_TABSTOP, 0, 128, 380, 148
 END
 
 IDD_PAGE_NAME DIALOGEX 0, 0, 282, 78
@@ -124,6 +125,11 @@ BEGIN
             MENUITEM "Keep &Oldest",            ID_DUP_KEEPOLDEST
             MENUITEM "Keep &Shortest Path",     ID_DUP_KEEPSHORTEST
         END
+        MENUITEM "C&heck Selected\tSpace",      ID_EDIT_CHECKSEL
+        MENUITEM "&Uncheck Selected",           ID_EDIT_UNCHECKSEL
+        MENUITEM "Check All in This F&older",   ID_DUP_CHECKFOLDER
+        MENUITEM "Uncheck All in This Fol&der", ID_DUP_UNCHECKFOLDER
+        MENUITEM "Uncheck A&ll",                ID_EDIT_UNCHECKALL
     END
     POPUP "&View"
     BEGIN
@@ -139,6 +145,11 @@ BEGIN
             MENUITEM "by &Size",                ID_ARRANGE_SIZE
             MENUITEM "by &Type",                ID_ARRANGE_TYPE
             MENUITEM "by &Date",                ID_ARRANGE_DATE
+        END
+        POPUP "&Group Duplicates By"
+        BEGIN
+            MENUITEM "Duplicate &Set",          ID_GROUPBY_SET
+            MENUITEM "&Folder",                 ID_GROUPBY_FOLDER
         END
         MENUITEM SEPARATOR
         MENUITEM "&Refresh\tF5",                ID_VIEW_REFRESH
@@ -162,6 +173,11 @@ BEGIN
         MENUITEM "Open &Containing Folder",     ID_FILE_OPENFOLDER
         MENUITEM SEPARATOR
         MENUITEM "Copy &Full Path",             ID_EDIT_COPYPATH
+        MENUITEM SEPARATOR
+        MENUITEM "C&heck Selected",             ID_EDIT_CHECKSEL
+        MENUITEM "&Uncheck Selected",           ID_EDIT_UNCHECKSEL
+        MENUITEM "Check All in This F&older",   ID_DUP_CHECKFOLDER
+        MENUITEM "Uncheck All in This Fol&der", ID_DUP_UNCHECKFOLDER
         MENUITEM SEPARATOR
         MENUITEM "&Delete",                     ID_FILE_DELETE_ITEM
         MENUITEM "&Move to Folder...",          ID_FILE_MOVETO

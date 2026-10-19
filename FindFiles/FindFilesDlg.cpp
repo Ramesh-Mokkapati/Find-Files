@@ -5,7 +5,22 @@ namespace
 {
     const UINT_PTR kAnimTimer = 1;
 
-    enum Column { COL_NAME, COL_FOLDER, COL_SIZE, COL_TYPE, COL_MODIFIED, COL_COUNT };
+    // Posted (once per burst) when checkboxes change, to refresh the status bar.
+    const UINT WM_APP_CHECKS = WM_APP + 20;
+
+    // List group ids for folder grouping start here; duplicate sets use 1..N.
+    const int kFolderGroupBase = 100000;
+
+    // COL_SET exists only in duplicate mode; it is the last column so the
+    // indexes of the others never change.
+    enum Column { COL_NAME, COL_FOLDER, COL_SIZE, COL_TYPE, COL_MODIFIED, COL_SET, COL_COUNT };
+
+    CString FolderKey(const CString& folder)
+    {
+        CString k = folder;
+        k.MakeLower();
+        return k;
+    }
 
     CString FormatSize(const FileEntry& e)
     {
@@ -89,10 +104,13 @@ BEGIN_MESSAGE_MAP(CFindFilesDlg, CDialog)
     ON_NOTIFY(TCN_SELCHANGE, IDC_TAB, &CFindFilesDlg::OnTabChange)
     ON_NOTIFY(LVN_COLUMNCLICK, IDC_RESULTS, &CFindFilesDlg::OnColumnClick)
     ON_NOTIFY(NM_DBLCLK, IDC_RESULTS, &CFindFilesDlg::OnListDblClk)
+    ON_NOTIFY(LVN_ITEMCHANGED, IDC_RESULTS, &CFindFilesDlg::OnListItemChanged)
+    ON_MESSAGE(WM_APP_CHECKS, &CFindFilesDlg::OnChecksChanged)
 
     ON_BN_CLICKED(IDC_FINDNOW, &CFindFilesDlg::OnFindNow)
     ON_BN_CLICKED(IDC_STOP, &CFindFilesDlg::OnStop)
     ON_BN_CLICKED(IDC_NEWSEARCH, &CFindFilesDlg::OnNewSearch)
+    ON_BN_CLICKED(IDC_DELETEDUPS, &CFindFilesDlg::OnDeleteDuplicates)
 
     ON_MESSAGE(WM_APP_RESULTS, &CFindFilesDlg::OnSearchResults)
     ON_MESSAGE(WM_APP_STATUS, &CFindFilesDlg::OnSearchStatus)
@@ -109,6 +127,10 @@ BEGIN_MESSAGE_MAP(CFindFilesDlg, CDialog)
     ON_COMMAND(ID_EDIT_SELECTALL, &CFindFilesDlg::OnEditSelectAll)
     ON_COMMAND(ID_EDIT_INVERT, &CFindFilesDlg::OnEditInvert)
     ON_COMMAND_RANGE(ID_DUP_KEEPFIRST, ID_DUP_KEEPSHORTEST, &CFindFilesDlg::OnSelectDuplicates)
+    ON_COMMAND_RANGE(ID_EDIT_CHECKSEL, ID_EDIT_UNCHECKSEL, &CFindFilesDlg::OnCheckSelected)
+    ON_COMMAND(ID_EDIT_UNCHECKALL, &CFindFilesDlg::OnUncheckAll)
+    ON_COMMAND_RANGE(ID_DUP_CHECKFOLDER, ID_DUP_UNCHECKFOLDER, &CFindFilesDlg::OnCheckFolder)
+    ON_COMMAND_RANGE(ID_GROUPBY_SET, ID_GROUPBY_FOLDER, &CFindFilesDlg::OnGroupBy)
     ON_COMMAND_RANGE(ID_VIEWMODE_LARGEICONS, ID_VIEWMODE_DETAILS, &CFindFilesDlg::OnViewMode)
     ON_COMMAND_RANGE(ID_ARRANGE_NAME, ID_ARRANGE_DATE, &CFindFilesDlg::OnArrange)
     ON_COMMAND(ID_VIEW_REFRESH, &CFindFilesDlg::OnFindNow)
@@ -118,10 +140,14 @@ BEGIN_MESSAGE_MAP(CFindFilesDlg, CDialog)
 
     ON_UPDATE_COMMAND_UI(ID_FILE_OPEN_ITEM, &CFindFilesDlg::OnUpdateNeedSelection)
     ON_UPDATE_COMMAND_UI(ID_FILE_OPENFOLDER, &CFindFilesDlg::OnUpdateNeedSelection)
-    ON_UPDATE_COMMAND_UI(ID_FILE_DELETE_ITEM, &CFindFilesDlg::OnUpdateNeedSelection)
-    ON_UPDATE_COMMAND_UI(ID_FILE_MOVETO, &CFindFilesDlg::OnUpdateNeedSelection)
+    ON_UPDATE_COMMAND_UI(ID_FILE_DELETE_ITEM, &CFindFilesDlg::OnUpdateNeedChecks)
+    ON_UPDATE_COMMAND_UI(ID_FILE_MOVETO, &CFindFilesDlg::OnUpdateNeedChecks)
     ON_UPDATE_COMMAND_UI(ID_FILE_PROPERTIES, &CFindFilesDlg::OnUpdateNeedSelection)
-    ON_UPDATE_COMMAND_UI(ID_EDIT_COPYPATH, &CFindFilesDlg::OnUpdateNeedSelection)
+    ON_UPDATE_COMMAND_UI(ID_EDIT_COPYPATH, &CFindFilesDlg::OnUpdateNeedChecks)
+    ON_UPDATE_COMMAND_UI_RANGE(ID_EDIT_CHECKSEL, ID_EDIT_UNCHECKSEL, &CFindFilesDlg::OnUpdateNeedDupSelection)
+    ON_UPDATE_COMMAND_UI_RANGE(ID_DUP_CHECKFOLDER, ID_DUP_UNCHECKFOLDER, &CFindFilesDlg::OnUpdateNeedDupSelection)
+    ON_UPDATE_COMMAND_UI(ID_EDIT_UNCHECKALL, &CFindFilesDlg::OnUpdateNeedDupItems)
+    ON_UPDATE_COMMAND_UI_RANGE(ID_GROUPBY_SET, ID_GROUPBY_FOLDER, &CFindFilesDlg::OnUpdateGroupBy)
     ON_UPDATE_COMMAND_UI(ID_FILE_SAVERESULTS, &CFindFilesDlg::OnUpdateNeedItems)
     ON_UPDATE_COMMAND_UI(ID_EDIT_SELECTALL, &CFindFilesDlg::OnUpdateNeedItems)
     ON_UPDATE_COMMAND_UI(ID_EDIT_INVERT, &CFindFilesDlg::OnUpdateNeedItems)
@@ -205,7 +231,7 @@ void CFindFilesDlg::Layout()
     CRect rc;
     GetClientRect(&rc);
 
-    CRect du(7, 96, 65, 14);    // margin, tab height, button width, button height
+    CRect du(7, 114, 65, 14);   // margin, tab height, button width, button height
     MapDialogRect(&du);
     CRect gapRc(0, 0, 4, 18);   // gap between buttons, top offset of buttons
     MapDialogRect(&gapRc);
@@ -221,7 +247,7 @@ void CFindFilesDlg::Layout()
     m_tab.MoveWindow(margin, margin, tabW, tabH);
 
     int y = margin + gapRc.bottom;
-    for (UINT id : { IDC_FINDNOW, IDC_STOP, IDC_NEWSEARCH })
+    for (UINT id : { IDC_FINDNOW, IDC_STOP, IDC_NEWSEARCH, IDC_DELETEDUPS })
     {
         GetDlgItem(id)->MoveWindow(btnX, y, btnW, btnH);
         y += btnH + gapRc.right;
@@ -278,6 +304,17 @@ BOOL CFindFilesDlg::PreTranslateMessage(MSG* pMsg)
     if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_F5)
     {
         OnFindNow();
+        return TRUE;
+    }
+
+    // Space on several selected duplicates ticks (or unticks) all of them; the
+    // list view on its own would only toggle the focused row.
+    if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_SPACE && pMsg->hwnd == m_list.m_hWnd &&
+        m_dupMode && m_list.GetSelectedCount() > 1)
+    {
+        int focused = m_list.GetNextItem(-1, LVNI_FOCUSED);
+        bool check = focused >= 0 ? !m_list.GetCheck(focused) : true;
+        SetChecks(GetSelectedItems(), check);
         return TRUE;
     }
 
@@ -384,6 +421,26 @@ void CFindFilesDlg::OnFindNow()
     m_dupMode = c.findDups;
     m_list.EnableGroupView(m_dupMode);
 
+    // Duplicate mode: a checkbox per file, and a Set column (shown next to Name)
+    // so matching files stay recognisable when grouped by folder.
+    DWORD ex = m_list.GetExtendedStyle();
+    m_list.SetExtendedStyle(m_dupMode ? (ex | LVS_EX_CHECKBOXES) : (ex & ~LVS_EX_CHECKBOXES));
+    int columns = m_list.GetHeaderCtrl()->GetItemCount();
+    if (m_dupMode && columns == COL_SET)
+    {
+        m_list.InsertColumn(COL_SET, L"Set", LVCFMT_LEFT, MulDiv(60, GetDpiForWindow(m_hWnd), 96));
+        int order[COL_COUNT] = { COL_NAME, COL_SET, COL_FOLDER, COL_SIZE, COL_TYPE, COL_MODIFIED };
+        m_list.SetColumnOrderArray(COL_COUNT, order);
+    }
+    else if (!m_dupMode && columns > COL_SET)
+    {
+        m_list.DeleteColumn(COL_SET);
+        if (m_sortCol == COL_SET)
+        {
+            m_sortCol = -1;
+        }
+    }
+
     CString named = m_pageName.GetNamedText();
     CString caption = named.IsEmpty() ? CString(L"Find: All Files") : L"Find: Files named " + named;
     if (m_dupMode)
@@ -444,6 +501,7 @@ void CFindFilesDlg::SetSearching(bool searching)
     GetDlgItem(IDC_FINDNOW)->EnableWindow(!searching);
     GetDlgItem(IDC_STOP)->EnableWindow(searching);
     GetDlgItem(IDC_NEWSEARCH)->EnableWindow(!searching);
+    UpdateDeleteDupsButton();
 
     if (searching)
     {
@@ -466,6 +524,9 @@ void CFindFilesDlg::ClearResults()
     m_list.RemoveAllGroups();
     m_results.clear();
     m_groupCount = 0;
+    m_setNumber.clear();
+    m_folderGroupIds.clear();
+    m_folderGroupNames.clear();
 }
 
 LRESULT CFindFilesDlg::OnSearchResults(WPARAM, LPARAM lParam)
@@ -504,7 +565,15 @@ LRESULT CFindFilesDlg::OnSearchDone(WPARAM wParam, LPARAM)
     m_engine.Wait();
     m_lastStopped = wParam != 0;
     SetSearching(false);
-    UpdateGroupHeaders();
+    if (m_dupMode && m_groupByFolder)
+    {
+        RebuildGroups();    // results arrive grouped by set; regroup once at the end
+    }
+    else
+    {
+        UpdateGroupHeaders();
+    }
+
     if (m_sortCol >= 0)
     {
         SortList();
@@ -514,6 +583,12 @@ LRESULT CFindFilesDlg::OnSearchDone(WPARAM wParam, LPARAM)
     if (m_list.GetItemCount() > 0 && GetFocus() == GetDlgItem(IDC_STOP))
     {
         m_list.SetFocus();
+    }
+
+    // Tick every copy except the first in each set, ready for Delete Duplicates.
+    if (m_dupMode && !m_lastStopped && m_list.GetItemCount() > 0)
+    {
+        OnSelectDuplicates(ID_DUP_KEEPFIRST);
     }
 
     return 0;
@@ -628,14 +703,22 @@ void CFindFilesDlg::UpdateGroupHeaders()
         m_list.DeleteItem(item);
     }
 
+    // Singles are gone, so item indexes have shifted: regroup by set.
+    byGroup.clear();
+    for (int i = 0; i < m_list.GetItemCount(); i++)
+    {
+        byGroup[EntryAt(i).group].push_back(i);
+    }
+
     int setNo = 0;
+    m_setNumber.clear();
     for (int g = 0; g < m_groupCount; g++)
     {
         auto it = byGroup.find(g);
         size_t count = it == byGroup.end() ? 0 : it->second.size();
         if (count < 2)
         {
-            if (m_list.HasGroup(g + 1))
+            if (!m_groupByFolder && m_list.HasGroup(g + 1))
             {
                 m_list.RemoveGroup(g + 1);
             }
@@ -643,10 +726,16 @@ void CFindFilesDlg::UpdateGroupHeaders()
             continue;
         }
 
+        m_setNumber[g] = ++setNo;
+        if (m_groupByFolder)
+        {
+            continue;
+        }
+
         const FileEntry& first = EntryAt(it->second.front());
         CString header;
         header.Format(L"Set %d  \u2014  %d copies of %s each  (%s reclaimable)",
-            ++setNo, static_cast<int>(count), (LPCWSTR)FormatBytes(first.size),
+            setNo, static_cast<int>(count), (LPCWSTR)FormatBytes(first.size),
             (LPCWSTR)FormatBytes(first.size * (count - 1)));
 
         LVGROUP lg{ sizeof(lg) };
@@ -654,6 +743,137 @@ void CFindFilesDlg::UpdateGroupHeaders()
         lg.pszHeader = const_cast<LPWSTR>(static_cast<LPCWSTR>(header));
         m_list.SetGroupInfo(g + 1, &lg);
     }
+
+    if (m_groupByFolder)
+    {
+        // One group per folder: "N duplicate file(s), size - <folder>".
+        std::map<int, std::pair<int, ULONGLONG>> perFolder;    // group id -> (files, bytes)
+        for (int i = 0; i < m_list.GetItemCount(); i++)
+        {
+            const FileEntry& e = EntryAt(i);
+            auto id = m_folderGroupIds.find(FolderKey(e.folder));
+            if (id != m_folderGroupIds.end())
+            {
+                perFolder[id->second].first++;
+                perFolder[id->second].second += e.size;
+            }
+        }
+
+        for (auto& kv : m_folderGroupNames)
+        {
+            auto p = perFolder.find(kv.first);
+            if (p == perFolder.end())
+            {
+                if (m_list.HasGroup(kv.first))
+                {
+                    m_list.RemoveGroup(kv.first);
+                }
+
+                continue;
+            }
+
+            CString header;
+            // Count first: long paths get cut off at the right edge.
+            header.Format(L"%d duplicate file(s), %s  \u2014  %s", p->second.first,
+                (LPCWSTR)FormatBytes(p->second.second), (LPCWSTR)kv.second);
+            LVGROUP lg{ sizeof(lg) };
+            lg.mask = LVGF_HEADER;
+            lg.pszHeader = const_cast<LPWSTR>(static_cast<LPCWSTR>(header));
+            m_list.SetGroupInfo(kv.first, &lg);
+        }
+    }
+
+    if (m_list.GetHeaderCtrl()->GetItemCount() > COL_SET)
+    {
+        for (int i = 0; i < m_list.GetItemCount(); i++)
+        {
+            m_list.SetItemText(i, COL_SET, SetLabel(EntryAt(i).group));
+        }
+    }
+}
+
+CString CFindFilesDlg::SetLabel(int group) const
+{
+    auto it = m_setNumber.find(group);
+    CString s;
+    if (it != m_setNumber.end())
+    {
+        s.Format(L"Set %d", it->second);
+    }
+
+    return s;
+}
+
+void CFindFilesDlg::RebuildGroups()
+{
+    if (!m_dupMode)
+    {
+        return;
+    }
+
+    m_list.SetRedraw(FALSE);
+    m_list.RemoveAllGroups();
+    m_folderGroupIds.clear();
+    m_folderGroupNames.clear();
+
+    if (m_groupByFolder)
+    {
+        // Folders in natural (A-Z) order; the group order is the insertion order.
+        std::vector<CString> folders;
+        for (int i = 0; i < m_list.GetItemCount(); i++)
+        {
+            folders.push_back(EntryAt(i).folder);
+        }
+
+        std::sort(folders.begin(), folders.end(),
+            [](const CString& a, const CString& b) { return StrCmpLogicalW(a, b) < 0; });
+        int id = kFolderGroupBase;
+        for (const CString& f : folders)
+        {
+            if (m_folderGroupIds.count(FolderKey(f)))
+            {
+                continue;
+            }
+
+            LVGROUP lg{ sizeof(lg) };
+            lg.mask = LVGF_HEADER | LVGF_GROUPID | LVGF_STATE;
+            lg.iGroupId = id;
+            lg.pszHeader = const_cast<LPWSTR>(L"");
+            lg.state = lg.stateMask = LVGS_COLLAPSIBLE;
+            m_list.InsertGroup(-1, &lg);
+            m_folderGroupIds[FolderKey(f)] = id;
+            m_folderGroupNames[id] = f;
+            ++id;
+        }
+    }
+    else
+    {
+        int count = m_groupCount;
+        m_groupCount = 0;
+        if (count > 0)
+        {
+            EnsureGroup(count - 1);
+        }
+    }
+
+    for (int i = 0; i < m_list.GetItemCount(); i++)
+    {
+        const FileEntry& e = EntryAt(i);
+        LVITEM it{};
+        it.mask = LVIF_GROUPID;
+        it.iItem = i;
+        it.iGroupId = m_groupByFolder ? m_folderGroupIds[FolderKey(e.folder)] : e.group + 1;
+        m_list.SetItem(&it);
+    }
+
+    UpdateGroupHeaders();
+    if (m_sortCol >= 0)
+    {
+        SortList();
+    }
+
+    m_list.SetRedraw(TRUE);
+    m_list.Invalidate();
 }
 
 void CFindFilesDlg::UpdateStatus()
@@ -684,6 +904,19 @@ void CFindFilesDlg::UpdateStatus()
         {
             text.Format(L"%s duplicate file(s) in %s set(s)  \u2014  %s can be reclaimed",
                 (LPCWSTR)FormatCount(n), (LPCWSTR)FormatCount(sets.size()), (LPCWSTR)FormatBytes(wasted));
+
+            ULONGLONG checkedBytes = 0;
+            std::vector<int> checked = GetCheckedItems();
+            for (int item : checked)
+            {
+                checkedBytes += EntryAt(item).size;
+            }
+
+            if (!checked.empty())
+            {
+                text.AppendFormat(L"   |   %s checked (%s)", (LPCWSTR)FormatCount(checked.size()),
+                    (LPCWSTR)FormatBytes(checkedBytes));
+            }
         }
     }
     else
@@ -697,6 +930,32 @@ void CFindFilesDlg::UpdateStatus()
     }
 
     m_status.SetText(text, 0, 0);
+    UpdateDeleteDupsButton();
+}
+
+void CFindFilesDlg::UpdateDeleteDupsButton()
+{
+    if (CWnd* button = GetDlgItem(IDC_DELETEDUPS))
+    {
+        button->EnableWindow(m_dupMode && !m_searching && !GetCheckedItems().empty());
+    }
+}
+
+void CFindFilesDlg::OnDeleteDuplicates()
+{
+    if (!m_dupMode || m_searching)
+    {
+        return;
+    }
+
+    if (GetCheckedItems().empty())
+    {
+        MessageBox(L"No duplicates are checked. Use Edit > Select Duplicates, or tick the files to delete.",
+            L"Delete Duplicates", MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+
+    OnFileDelete();     // deletes the checked files, with the usual confirmation
 }
 
 int CALLBACK CFindFilesDlg::CompareItems(LPARAM a, LPARAM b, LPARAM param)
@@ -713,6 +972,14 @@ int CALLBACK CFindFilesDlg::CompareItems(LPARAM a, LPARAM b, LPARAM param)
     case COL_SIZE:     r = x.size < y.size ? -1 : x.size > y.size ? 1 : 0; break;
     case COL_TYPE:     r = x.type.CompareNoCase(y.type); break;
     case COL_MODIFIED: r = CompareFileTime(&x.modified, &y.modified); break;
+    case COL_SET:
+    {
+        auto nx = self->m_setNumber.find(x.group), ny = self->m_setNumber.find(y.group);
+        int a1 = nx == self->m_setNumber.end() ? 0 : nx->second;
+        int b1 = ny == self->m_setNumber.end() ? 0 : ny->second;
+        r = a1 - b1;
+        break;
+    }
     }
 
     if (r == 0)
@@ -790,6 +1057,125 @@ std::vector<int> CFindFilesDlg::GetSelectedItems() const
     }
 
     return items;
+}
+
+std::vector<int> CFindFilesDlg::GetCheckedItems() const
+{
+    std::vector<int> items;
+    if (m_dupMode)
+    {
+        for (int i = 0; i < m_list.GetItemCount(); i++)
+        {
+            if (m_list.GetCheck(i))
+            {
+                items.push_back(i);
+            }
+        }
+    }
+
+    return items;
+}
+
+std::vector<int> CFindFilesDlg::GetActionItems() const
+{
+    std::vector<int> items = GetCheckedItems();
+    return items.empty() ? GetSelectedItems() : items;
+}
+
+void CFindFilesDlg::SetChecks(const std::vector<int>& items, bool check)
+{
+    m_suppressCheckNotify = true;
+    for (int item : items)
+    {
+        m_list.SetCheck(item, check);
+    }
+
+    m_suppressCheckNotify = false;
+    UpdateStatus();
+}
+
+void CFindFilesDlg::OnListItemChanged(NMHDR* pNMHDR, LRESULT* pResult)
+{
+    auto* nm = reinterpret_cast<NMLISTVIEW*>(pNMHDR);
+    *pResult = 0;
+    if (!m_dupMode || m_suppressCheckNotify || m_searching || !(nm->uChanged & LVIF_STATE) ||
+        !((nm->uNewState ^ nm->uOldState) & LVIS_STATEIMAGEMASK))
+    {
+        return;
+    }
+
+    // A click can toggle many rows (e.g. shift-click ranges); refresh once.
+    if (!m_checkUpdatePending)
+    {
+        m_checkUpdatePending = true;
+        PostMessage(WM_APP_CHECKS);
+    }
+}
+
+LRESULT CFindFilesDlg::OnChecksChanged(WPARAM, LPARAM)
+{
+    m_checkUpdatePending = false;
+    if (!m_searching)
+    {
+        UpdateStatus();
+    }
+
+    return 0;
+}
+
+void CFindFilesDlg::OnCheckSelected(UINT id)
+{
+    SetChecks(GetSelectedItems(), id == ID_EDIT_CHECKSEL);
+}
+
+void CFindFilesDlg::OnUncheckAll()
+{
+    std::vector<int> all(m_list.GetItemCount());
+    for (int i = 0; i < static_cast<int>(all.size()); i++)
+    {
+        all[i] = i;
+    }
+
+    SetChecks(all, false);
+}
+
+void CFindFilesDlg::OnCheckFolder(UINT id)
+{
+    int focused = m_list.GetNextItem(-1, LVNI_FOCUSED | LVNI_SELECTED);
+    if (focused < 0)
+    {
+        focused = m_list.GetNextItem(-1, LVNI_SELECTED);
+    }
+
+    if (focused < 0)
+    {
+        return;
+    }
+
+    CString folder = EntryAt(focused).folder;
+    std::vector<int> items;
+    for (int i = 0; i < m_list.GetItemCount(); i++)
+    {
+        if (EntryAt(i).folder.CompareNoCase(folder) == 0)
+        {
+            items.push_back(i);
+        }
+    }
+
+    SetChecks(items, id == ID_DUP_CHECKFOLDER);
+}
+
+void CFindFilesDlg::OnGroupBy(UINT id)
+{
+    bool byFolder = id == ID_GROUPBY_FOLDER;
+    if (byFolder == m_groupByFolder)
+    {
+        return;
+    }
+
+    m_groupByFolder = byFolder;
+    RebuildGroups();
+    UpdateStatus();
 }
 
 void CFindFilesDlg::RemoveListItems(std::vector<int> items)
@@ -874,7 +1260,7 @@ void CFindFilesDlg::OnFileOpenFolder()
 
 void CFindFilesDlg::OnFileDelete()
 {
-    auto sel = GetSelectedItems();
+    auto sel = GetActionItems();
     if (sel.empty() || m_searching)
     {
         return;
@@ -992,14 +1378,14 @@ void CFindFilesDlg::OnFileDelete()
 
 void CFindFilesDlg::OnFileMoveTo()
 {
-    auto sel = GetSelectedItems();
+    auto sel = GetActionItems();
     if (sel.empty() || m_searching)
     {
         return;
     }
 
     CFolderPickerDialog dlg(nullptr, 0, this);
-    dlg.m_ofn.lpstrTitle = L"Move selected files to";
+    dlg.m_ofn.lpstrTitle = GetCheckedItems().empty() ? L"Move selected files to" : L"Move checked files to";
     if (dlg.DoModal() != IDOK)
     {
         return;
@@ -1070,7 +1456,7 @@ void CFindFilesDlg::OnFileSaveResults()
         return;
     }
 
-    CString text = m_dupMode ? L"Set,Name,In Folder,Size (bytes),Type,Modified,SHA-256\r\n"
+    CString text = m_dupMode ? L"Set,Name,In Folder,Size (bytes),Type,Modified,SHA-256,Checked\r\n"
         : L"Name,In Folder,Size (bytes),Type,Modified\r\n";
     for (int i = 0; i < m_list.GetItemCount(); i++)
     {
@@ -1085,7 +1471,7 @@ void CFindFilesDlg::OnFileSaveResults()
             (LPCWSTR)CsvField(e.type), (LPCWSTR)CsvField(FormatTime(e.modified)));
         if (m_dupMode)
         {
-            line += L"," + e.HashHex();
+            line += L"," + e.HashHex() + (m_list.GetCheck(i) ? L",Yes" : L",");
         }
 
         text += line + L"\r\n";
@@ -1114,7 +1500,7 @@ void CFindFilesDlg::OnFileSaveResults()
 void CFindFilesDlg::OnEditCopyPath()
 {
     CString text;
-    for (int item : GetSelectedItems())
+    for (int item : GetActionItems())
     {
         text += EntryAt(item).FullPath() + L"\r\n";
     }
@@ -1170,7 +1556,9 @@ void CFindFilesDlg::OnSelectDuplicates(UINT id)
         byGroup[EntryAt(i).group].push_back(i);
     }
 
-    m_list.SetItemState(-1, 0, LVIS_SELECTED);
+    // Tick the copies to remove (the checkboxes survive clicking around the
+    // list, unlike a selection) and untick everything else.
+    std::vector<int> toCheck;
     int selected = 0;
     ULONGLONG bytes = 0;
 
@@ -1212,16 +1600,18 @@ void CFindFilesDlg::OnSelectDuplicates(UINT id)
                 continue;
             }
 
-            m_list.SetItemState(item, LVIS_SELECTED, LVIS_SELECTED);
+            toCheck.push_back(item);
             ++selected;
             bytes += EntryAt(item).size;
         }
     }
 
+    OnUncheckAll();
+    SetChecks(toCheck, true);
     m_list.SetFocus();
 
     CString text;
-    text.Format(L"%s file(s) selected (%s). One copy in each set is kept. Press Delete to remove the selection.",
+    text.Format(L"%s file(s) checked (%s). One copy in each set is kept. Click Delete Duplicates to remove them.",
         (LPCWSTR)FormatCount(selected), (LPCWSTR)FormatBytes(bytes));
     m_status.SetText(text, 0, 0);
 }
@@ -1273,6 +1663,24 @@ void CFindFilesDlg::OnUpdateNeedItems(CCmdUI* pCmdUI)
 void CFindFilesDlg::OnUpdateNeedDupItems(CCmdUI* pCmdUI)
 {
     pCmdUI->Enable(m_dupMode && !m_searching && m_list.GetItemCount() > 0);
+}
+
+void CFindFilesDlg::OnUpdateNeedDupSelection(CCmdUI* pCmdUI)
+{
+    pCmdUI->Enable(m_dupMode && !m_searching && m_list.GetSelectedCount() > 0);
+}
+
+void CFindFilesDlg::OnUpdateNeedChecks(CCmdUI* pCmdUI)
+{
+    bool busy = m_searching && (pCmdUI->m_nID == ID_FILE_DELETE_ITEM || pCmdUI->m_nID == ID_FILE_MOVETO);
+    bool any = m_list.GetSelectedCount() > 0 || !GetCheckedItems().empty();
+    pCmdUI->Enable(any && !busy);
+}
+
+void CFindFilesDlg::OnUpdateGroupBy(CCmdUI* pCmdUI)
+{
+    pCmdUI->Enable(m_dupMode && !m_searching && m_list.GetItemCount() > 0);
+    pCmdUI->SetRadio((pCmdUI->m_nID == ID_GROUPBY_FOLDER) == m_groupByFolder);
 }
 
 void CFindFilesDlg::OnUpdateViewMode(CCmdUI* pCmdUI)

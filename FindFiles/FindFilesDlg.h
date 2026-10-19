@@ -28,10 +28,13 @@ protected:
     afx_msg void OnTabChange(NMHDR* pNMHDR, LRESULT* pResult);
     afx_msg void OnColumnClick(NMHDR* pNMHDR, LRESULT* pResult);
     afx_msg void OnListDblClk(NMHDR* pNMHDR, LRESULT* pResult);
+    afx_msg void OnListItemChanged(NMHDR* pNMHDR, LRESULT* pResult);
+    afx_msg LRESULT OnChecksChanged(WPARAM wParam, LPARAM lParam);
 
     afx_msg void OnFindNow();
     afx_msg void OnStop();
     afx_msg void OnNewSearch();
+    afx_msg void OnDeleteDuplicates();
 
     afx_msg LRESULT OnSearchResults(WPARAM wParam, LPARAM lParam);
     afx_msg LRESULT OnSearchStatus(WPARAM wParam, LPARAM lParam);
@@ -48,6 +51,10 @@ protected:
     afx_msg void OnEditSelectAll();
     afx_msg void OnEditInvert();
     afx_msg void OnSelectDuplicates(UINT id);
+    afx_msg void OnCheckSelected(UINT id);
+    afx_msg void OnUncheckAll();
+    afx_msg void OnCheckFolder(UINT id);
+    afx_msg void OnGroupBy(UINT id);
     afx_msg void OnViewMode(UINT id);
     afx_msg void OnArrange(UINT id);
     afx_msg void OnOptCase();
@@ -57,6 +64,9 @@ protected:
     afx_msg void OnUpdateNeedSelection(CCmdUI* pCmdUI);
     afx_msg void OnUpdateNeedItems(CCmdUI* pCmdUI);
     afx_msg void OnUpdateNeedDupItems(CCmdUI* pCmdUI);
+    afx_msg void OnUpdateNeedDupSelection(CCmdUI* pCmdUI);
+    afx_msg void OnUpdateNeedChecks(CCmdUI* pCmdUI);
+    afx_msg void OnUpdateGroupBy(CCmdUI* pCmdUI);
     afx_msg void OnUpdateViewMode(CCmdUI* pCmdUI);
     afx_msg void OnUpdateOptCase(CCmdUI* pCmdUI);
     afx_msg void OnUpdateOptDups(CCmdUI* pCmdUI);
@@ -80,9 +90,19 @@ private:
     const TypeInfo& GetTypeInfo(const FileEntry& e);
     void UpdateGroupHeaders();
     void UpdateStatus();
+    void UpdateDeleteDupsButton();
     void SortList();
     void UpdateSortArrow();
     std::vector<int> GetSelectedItems() const;
+
+    // Duplicate mode shows a checkbox on every file. File commands that act on
+    // many files (Delete, Move to Folder, Copy Full Path) use the checked files
+    // when any are checked, otherwise the selection.
+    std::vector<int> GetCheckedItems() const;
+    std::vector<int> GetActionItems() const;
+    void SetChecks(const std::vector<int>& items, bool check);
+    void RebuildGroups();       // regroup the list by duplicate set or by folder
+    CString SetLabel(int group) const;
     void RemoveListItems(std::vector<int> items);
     void ShutdownSearch();
     const FileEntry& EntryAt(int item) const { return m_results[m_list.GetItemData(item)]; }
@@ -104,6 +124,12 @@ private:
     bool m_searching = false;
     bool m_lastStopped = false;
     int m_groupCount = 0;
+    bool m_groupByFolder = false;           // View > Group Duplicates By > Folder
+    bool m_suppressCheckNotify = false;     // true while checks are set in bulk
+    bool m_checkUpdatePending = false;      // a WM_APP_CHECKS is already queued
+    std::map<int, int> m_setNumber;         // duplicate group -> "Set N" shown to the user
+    std::map<CString, int> m_folderGroupIds;    // lower-case folder -> list group id
+    std::map<int, CString> m_folderGroupNames;  // list group id -> folder as found
     int m_sortCol = -1;
     bool m_sortAsc = true;
     bool m_matchCase = false;

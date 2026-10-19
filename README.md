@@ -53,6 +53,17 @@ files duplicates:
 - Results are grouped into sets, with the sets that waste the most space first.
   Each set has a header such as
   `Set 1 — 2 copies of 195 KB each (195 KB reclaimable)`.
+- Every duplicate has a **checkbox**. When a duplicate search finishes, every
+  copy except the first in each set is **already ticked**, so one click on
+  **Delete Duplicates** (next to New Search) removes them after a confirmation.
+  Change the ticks first if you want to keep different copies; **Select
+  Duplicates** re-ticks by newest, oldest or shortest path. Delete, Move to
+  Folder and Copy Full Path also act on all ticked files at once, and the status
+  bar shows how many files are ticked and how much space they take.
+- **View → Group Duplicates By → Folder** lists the duplicates folder by folder
+  (A–Z) instead of set by set, with a **Set** column showing which files match.
+  Use it to find folders full of copies, such as an old backup, and tick
+  everything in one with **Check All in This Folder**.
 - Works on local drives, network shares and mapped drives.
 
 For a step-by-step guide, see [Finding and removing duplicates](#finding-and-removing-duplicates).
@@ -63,11 +74,19 @@ For a step-by-step guide, see [Finding and removing duplicates](#finding-and-rem
   Save Results (CSV, including SHA-256 hashes in duplicate mode).
 - **Edit**
   - Copy Full Path, Select All and Invert Selection.
-  - **Select Duplicates** selects every copy except one in each set. You choose
+  - **Select Duplicates** ticks every copy except one in each set. You choose
     which copy to keep: the first, the newest, the oldest, or the one with the
     shortest path.
+  - **Check Selected** / **Uncheck Selected** (Space) tick or untick every
+    highlighted file; **Check All in This Folder** / **Uncheck All in This
+    Folder** do the same for every duplicate in the focused file's folder;
+    **Uncheck All** clears all ticks.
+- In duplicate mode, **Delete**, **Move to Folder** and **Copy Full Path** act on
+  the ticked files. With nothing ticked they act on the highlighted files.
 - **View**: Large Icons, Small Icons, List, Details, and Arrange Icons by name,
   folder, size, type or date. You can also click a column header to sort.
+  In duplicate mode, **Group Duplicates By** switches between **Duplicate Set**
+  and **Folder**.
 - **Delete** sends files to the Recycle Bin. Network shares and removable
   drives have no Recycle Bin, so files there are deleted permanently; the
   confirmation says so (**Confirm Permanent Delete**) before anything happens.
@@ -87,6 +106,7 @@ For a step-by-step guide, see [Finding and removing duplicates](#finding-and-rem
 | Enter (in the results) | Open |
 | Alt+Enter | Properties |
 | Del | Delete (to the Recycle Bin; permanent on network and removable drives) |
+| Space (in duplicate results) | Tick or untick every highlighted file |
 | Ctrl+A | Select all |
 | Ctrl+C | Copy full path |
 
@@ -124,14 +144,15 @@ Two more settings:
   otherwise all count as copies of each other.
 
 Click **Find Now** (or press F5). The status bar shows progress: first the
-folder scan, then *Comparing file contents… N of M*. Click **Stop** at any
+folder scan, then *Comparing file contents… N of M*. When it finishes, every
+copy except the first in each set is ticked for you. Click **Stop** at any
 time. A stopped duplicate search shows no results, because sets can't be
 confirmed until every candidate has been compared.
 
 ### 3. Review the sets
 
-Each set is a collapsible group of identical files. The largest wasted space is
-listed first:
+Each set is a collapsible group of identical files, and every file has a
+checkbox. The largest wasted space is listed first:
 
 ```
 Set 1  —  3 copies of 1.2 GB each  (2.4 GB reclaimable)
@@ -141,10 +162,17 @@ The status bar shows the totals, e.g. *12 duplicate file(s) in 5 set(s) — 3.1 
 can be reclaimed*. Click a header's arrow to collapse a set. Double-click a file
 to open it, or use **Open Containing Folder** to see it in Explorer.
 
+To see where the copies are, choose **View → Group Duplicates By → Folder**. Each
+folder becomes a group, listed A–Z, with a header such as
+`12 duplicate file(s), 3.4 GB — D:\Backup\Photos`. The **Set** column shows which
+files are copies of each other. Your ticks are kept when you switch back to
+**Duplicate Set**.
+
 ### 4. Choose which copies to remove
 
-Use **Edit → Select Duplicates** to select every copy except one in each set.
-You choose which copy is kept:
+The finished search has already ticked every copy except the **first** in each
+set. To keep a different copy instead, use **Edit → Select Duplicates**, which
+re-ticks every copy except the one you choose to keep:
 
 | Option | Keeps |
 | --- | --- |
@@ -153,11 +181,20 @@ You choose which copy is kept:
 | Keep Oldest | The earliest modified copy, usually the original |
 | Keep Shortest Path | The copy nearest the top of the folder tree, e.g. `D:\Photos\a.jpg` rather than `D:\Photos\Old\Backup\a.jpg` |
 
-After that you can still Ctrl+click to change individual files. The status bar
-shows how many files are selected and how much space they take.
+After that, click a checkbox to change an individual file, or highlight several
+files and press Space to tick or untick them all. To remove a whole folder's
+copies, group by folder, click a file in that folder and choose **Check All in
+This Folder** (Edit or right-click menu). The status bar shows how many files are
+ticked and how much space they take.
 
 ### 5. Remove them
 
+Both commands act on the ticked files (or, with nothing ticked, on the
+highlighted ones).
+
+- **Delete Duplicates** (button under New Search): deletes the ticked files,
+  after the same confirmation as Delete. It is available only when duplicate
+  results have files ticked.
 - **Delete** (Del): sends files on local drives to the Recycle Bin. On network
   shares and removable drives the delete is **permanent**, and the confirmation
   says so. If your selection includes *every* copy in a set, you get an extra
@@ -173,7 +210,7 @@ is removed, since that file is no longer a duplicate.
 ### 6. Keep a record (optional)
 
 **File → Save Results** writes a CSV with the set number, name, folder, size,
-type, modified date and SHA-256 hash of every listed file. Save it *before*
+type, modified date, SHA-256 hash and whether it is ticked, for every listed file. Save it *before*
 deleting if you want a record of what was there.
 
 ## Network drives and shares
